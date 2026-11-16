@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0a0a0b"><meta name="robots" content="noindex,nofollow"><title>Для Миланы — 18 декабря</title><link rel="icon" href="heart.svg"><link rel="stylesheet" href="styles.css"><script src="assets/scene.bundle.js" defer></script><script src="letter.js" defer></script><script src="app.js" defer></script></head>
+<body><canvas id="snow-canvas" aria-hidden="true"></canvas>
+<button class="music-toggle" id="music-toggle" aria-label="Включить фоновую музыку"><span class="music-bars" aria-hidden="true"><span></span><span></span><span></span></span><span class="music-label">Музыка</span></button>
+
+<div id="countdown-screen" class="countdown-screen">
+<div class="countdown-center">
+<p class="countdown-eyebrow">Для Миланы · 18 декабря</p>
+<h1 class="countdown-headline">До твоего дня рождения осталось</h1>
+<div class="countdown-timer" id="countdown-timer">
+<div class="countdown-item"><span class="countdown-val" id="cd-days">--</span><span class="countdown-lbl">дней</span></div>
+<span class="countdown-sep">:</span>
+<div class="countdown-item"><span class="countdown-val" id="cd-hours">--</span><span class="countdown-lbl">часов</span></div>
+<span class="countdown-sep">:</span>
+<div class="countdown-item"><span class="countdown-val" id="cd-mins">--</span><span class="countdown-lbl">минут</span></div>
+<span class="countdown-sep">:</span>
+<div class="countdown-item"><span class="countdown-val" id="cd-secs">--</span><span class="countdown-lbl">секунд</span></div>
+</div>
+<p class="countdown-note">Подарок откроется точно в твой день ✨</p>
+</div>
+</div>
+
+<header class="topline"><span>Милане, с любовью</span><span>18 декабря · твои 18</span></header><main>
+<div id="gift-page"><section class="hero" aria-labelledby="title">
+<div class="hero-copy"><p class="kicker" id="chapter">Твой день. Твой подарок.</p><h1 id="title">Киса, это тебе.</h1></div>
+<div class="scene-wrap" id="scene-wrap"><canvas id="scene" aria-hidden="true"></canvas><div class="fallback-object" aria-hidden="true"><span>Для Миланы</span><img src="assets/necklace-cutout.png" width="1220" height="1160" alt=""></div><button class="scene-control" id="gift" disabled aria-label="Открыть коробочку с подарком" aria-expanded="false"></button></div>
+<div class="scene-actions"><button class="open-button" id="open" disabled>Открыть коробочку</button><p class="hint" id="hint" role="status">Готовлю твой подарок…</p>
+<div class="reveal" id="reveal" hidden><div class="inspect" id="inspect"><div class="turn-controls" role="group" aria-label="Поворот украшения"><button id="turn-left" aria-label="Повернуть украшение влево">←</button><span id="angle" aria-live="polite">0°</span><button id="turn-right" aria-label="Повернуть украшение вправо">→</button></div><p>Поверни лебедя, чтобы рассмотреть.</p></div>
+<button class="envelope" id="read" aria-label="Прочитать письмо"><span class="envelope-fold" aria-hidden="true"></span><span class="wax-seal" aria-hidden="true"><span>M</span></span><span class="envelope-name">Милане</span><span class="envelope-caption">Прочитать письмо</span></button><button class="quiet-button" id="reset">Открыть ещё раз</button></div></div>
+</section></div>
+<section class="letter" id="letter" hidden aria-labelledby="letter-title"><div class="letter-meta"><button class="quiet-button" id="back">← Вернуться к подарку</button><span>18 / 12</span></div><div class="letter-sheet"><div class="letter-decorations" aria-hidden="true"><div class="stamp-wrap"><div class="postage-stamp"><span class="stamp-icon">🦢</span><span class="stamp-date">18·12</span></div><div class="stamp-postmark"><span>★ 18.12.2026 ★</span><span>ДЛЯ МИЛАНЫ</span></div></div><div class="polaroid-card"><div class="washi-tape"></div><div class="polaroid-photo"><img src="assets/necklace-cutout.png" alt="Лебедь" width="120" height="110"></div><p class="polaroid-caption">Твой лебедь ✨</p></div></div><p class="letter-dedication">Только тебе · 18 декабря</p><h2 id="letter-title" tabindex="-1">Киса,<br><span class="handwritten-title">с днём рождения.</span></h2><div id="letter-body"></div><p class="signature">С твоими 18, моя киса.<br><span class="handwritten-sign">Люблю тебя 🤍</span></p><button class="quiet-button" id="close-letter">Закрыть письмо</button></div></section>
+</main><noscript><p class="no-script">Чтобы открыть подарок и письмо, включи JavaScript в браузере.</p></noscript></body></html>
