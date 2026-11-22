@@ -1,13 +1,12 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const reduce=window.matchMedia('(prefers-reduced-motion: reduce)');
-let state='closed',timer,angle=0,drag=null,lastSparkle=0;
+let state='closed',timer,angle=0,drag=null;
 
 // Populate letter body
 const paragraphs=window.birthdayLetter||[];
-paragraphs.forEach((text,i)=>{
+paragraphs.forEach(text=>{
  const p=document.createElement('p');
- p.style.setProperty('--delay',`${.15+i*.12}s`);
  if(text.includes('«Эту вещь создала Милана»')){
   const parts=text.split('«Эту вещь создала Милана»');
   p.append(parts[0]);
@@ -20,26 +19,6 @@ paragraphs.forEach((text,i)=>{
   p.textContent=text;
  }
  $('letter-body').append(p);
-});
-
-// Cursor sparkles
-function spawnSparkle(x,y){
- if(reduce.matches)return;
- const s=document.createElement('span');
- s.className='cursor-sparkle';
- s.style.left=`${x}px`;s.style.top=`${y}px`;
- s.style.setProperty('--dx',`${(Math.random()-.5)*42}px`);
- s.style.setProperty('--dy',`${Math.random()*28+8}px`);
- s.style.setProperty('--rot',`${Math.random()*90-45}deg`);
- document.body.appendChild(s);
- setTimeout(()=>s.remove(),700);
-}
-
-window.addEventListener('pointermove',e=>{
- const now=performance.now();
- if(now-lastSparkle<38)return;
- lastSparkle=now;
- spawnSparkle(e.clientX,e.clientY);
 });
 
 function turn(value){
@@ -61,23 +40,18 @@ function openGift(){
  window.giftScene?.setOpen(true);
  $('hint').textContent='С днём рождения, киса.';
 
- const rect=$('open').getBoundingClientRect();
- for(let i=0;i<14;i++){
-  setTimeout(()=>spawnSparkle(rect.left+rect.width*Math.random(),rect.top+rect.height*Math.random()),i*45);
- }
-
  timer=setTimeout(()=>{
   state='open';
   $('open').hidden=true;
   $('reveal').hidden=false;
-  $('title').textContent='Твой маленький лебедь.';
-  $('chapter').textContent='Рассмотри поближе';
+  $('title').textContent='Твой маленький лебедь';
   const fallback=$('scene-wrap').classList.contains('fallback');
   $('inspect').hidden=fallback;
+  $('hint').hidden=true;
   $('gift').disabled=fallback;
   $('gift').classList.add('inspectable');
   $('gift').setAttribute('aria-label','Повернуть украшение: перетяни или используй стрелки');
-  $('read').focus({preventScroll:true});
+  $('read').focus();
  },reduce.matches?0:1450);
 }
 
@@ -102,7 +76,6 @@ $('gift').addEventListener('pointerdown',e=>{
 $('gift').addEventListener('pointermove',e=>{
  if(drag){
   turn(drag.angle+(e.clientX-drag.x)*.23);
-  spawnSparkle(e.clientX,e.clientY);
  }
 });
 
@@ -121,7 +94,7 @@ function closeLetter(){
  $('letter').hidden=true;
  $('gift-page').hidden=false;
  window.scrollTo({top:0,behavior:'instant'});
- $('read').focus({preventScroll:true});
+ $('read').focus();
 }
 
 $('back').addEventListener('click',closeLetter);
@@ -135,6 +108,8 @@ $('reset').addEventListener('click',()=>{
  drag=null;
  window.giftScene?.setOpen(false);
  $('reveal').hidden=true;
+ $('inspect').hidden=true;
+ $('hint').hidden=false;
  $('open').hidden=false;
  $('open').disabled=false;
  $('gift').disabled=false;
@@ -142,116 +117,145 @@ $('reset').addEventListener('click',()=>{
  $('gift').setAttribute('aria-label','Открыть коробочку с подарком');
  $('gift').classList.remove('inspectable');
  $('scene-wrap').classList.remove('opened');
- $('title').textContent='Киса, это тебе.';
- $('chapter').textContent='Твой день. Твой подарок.';
+ $('title').textContent='Киса, это тебе';
  $('hint').textContent='Нажми на кнопку или на коробочку';
  $('open').focus({preventScroll:true});
 });
 
-// Atmospheric falling snow
-const snowCanvas=$('snow-canvas');
-if(snowCanvas&&!reduce.matches){
- const ctx=snowCanvas.getContext('2d');
- let w=snowCanvas.width=window.innerWidth,h=snowCanvas.height=window.innerHeight;
- window.addEventListener('resize',()=>{w=snowCanvas.width=window.innerWidth;h=snowCanvas.height=window.innerHeight;});
- const count=Math.min(95,Math.max(45,Math.floor(window.innerWidth/15)));
- const flakes=[];
- for(let i=0;i<count;i++){
-  flakes.push({
-   x:Math.random()*w,
-   y:Math.random()*h,
-   r:Math.random()*2.5+1,
-   speed:Math.random()*.85+.45,
-   sway:Math.random()*.75+.25,
-   angle:Math.random()*Math.PI*2,
-   opacity:Math.random()*.5+.35
-  });
- }
- function drawSnow(){
-  ctx.clearRect(0,0,w,h);
-  for(let i=0;i<flakes.length;i++){
-   const f=flakes[i];
-   f.y+=f.speed;
-   f.angle+=.015;
-   f.x+=Math.sin(f.angle)*f.sway;
-   if(f.y>h+10){f.y=-10;f.x=Math.random()*w;}
-   if(f.x>w+10)f.x=-10;else if(f.x<-10)f.x=w+10;
-   ctx.beginPath();
-   ctx.arc(f.x,f.y,f.r,0,Math.PI*2);
-   ctx.fillStyle=`rgba(255,255,255,${f.opacity})`;
-   if(f.r>2.2){ctx.shadowBlur=5;ctx.shadowColor='rgba(255,255,255,0.7)';}else{ctx.shadowBlur=0;}
-   ctx.fill();
-  }
-  if(!reduce.matches)requestAnimationFrame(drawSnow);
- }
- requestAnimationFrame(drawSnow);
-}
-
-// Countdown screen system (Fullscreen intro lock screen)
-let cdInterval=null;
-const pad=n=>String(Math.max(0,Math.floor(n))).padStart(2,'0');
+const preview=new URLSearchParams(location.search).get('test')==='1';
+const countdownTarget=preview?Date.now()+10_000:Date.parse('2026-12-18T00:00:00+03:00');
+const countdownScreen=$('countdown-screen');
+let showedCountdown=false;
 
 function unlockMainSite(){
- playChime();
- const screen=$('countdown-screen');
- if(!screen)return;
- screen.classList.add('fade-out');
- const rect=$('open')?.getBoundingClientRect();
- if(rect){
-  for(let i=0;i<32;i++){
-   setTimeout(()=>spawnSparkle(rect.left+rect.width*Math.random(),rect.top+rect.height*Math.random()),i*30);
-  }
+ const header=document.querySelector('header');
+ const main=document.querySelector('main');
+ header.inert=false;
+ if(!showedCountdown||reduce.matches){
+  countdownScreen.hidden=true;
+  main.inert=false;
+  return;
  }
+ countdownScreen.inert=true;
+ countdownScreen.classList.add('leaving');
+ main.classList.add('arriving');
  setTimeout(()=>{
-  screen.hidden=true;
- },reduce.matches?0:1200);
+  countdownScreen.hidden=true;
+  main.classList.remove('arriving');
+  main.inert=false;
+ },1050);
 }
 
 function updateCountdown(){
- const target=new Date('2026-12-18T00:00:00+03:00').getTime();
- const diff=target-Date.now();
- if(diff<=0){
-  $('cd-days').textContent='00';$('cd-hours').textContent='00';$('cd-mins').textContent='00';$('cd-secs').textContent='00';
-  clearInterval(cdInterval);cdInterval=null;
+ const remaining=countdownTarget-Date.now();
+ if(remaining<=0){
   unlockMainSite();
- }else{
-  const days=Math.floor(diff/(1000*60*60*24));
-  const hours=Math.floor((diff%(1000*60*60*24))/(1000*60*60));
-  const mins=Math.floor((diff%(1000*60*60))/(1000*60));
-  const secs=Math.floor((diff%(1000*60))/1000);
-  $('cd-days').textContent=pad(days);
-  $('cd-hours').textContent=pad(hours);
-  $('cd-mins').textContent=pad(mins);
-  $('cd-secs').textContent=pad(secs);
+  return;
  }
+ showedCountdown=true;
+ const seconds=Math.ceil(remaining/1000);
+ const values=[Math.floor(seconds/86400),Math.floor(seconds/3600)%24,Math.floor(seconds/60)%60,seconds%60];
+ ['cd-days','cd-hours','cd-mins','cd-secs'].forEach((id,i)=>{
+  $(id).textContent=String(values[i]).padStart(2,'0');
+ });
+ setTimeout(updateCountdown,remaining%1000||1000);
 }
 
-function startCountdown(){
- if(cdInterval)clearInterval(cdInterval);
- updateCountdown();
- cdInterval=setInterval(updateCountdown,1000);
+if(preview){
+ document.querySelector('.countdown-headline').textContent='Тестовый отсчёт';
+ document.querySelector('.countdown-note').textContent='Подарок откроется через 10 секунд';
 }
+updateCountdown();
 
-startCountdown();
+const winterCanvas=$('winter-snow');
+const winterContext=winterCanvas?.getContext('2d');
+if(winterContext){
+ let width,height,flakes,frame=0,previousTime;
+ function snowX(near){
+  const position=Math.random();
+  if(!near)return width*position;
+  return width*(position<.5?position*.54:1-(1-position)*.54);
+ }
+
+ function paintSnow(time){
+  frame=0;
+  const elapsed=previousTime===undefined?0:Math.min((time-previousTime)/1000,.05);
+  previousTime=time;
+  winterContext.clearRect(0,0,width,height);
+  for(const flake of flakes){
+   flake.y+=flake.speed*elapsed;
+   if(flake.y>height+flake.radius){
+    flake.y=-flake.radius;
+    flake.x=snowX(flake.near);
+   }
+   const x=flake.x+Math.sin(flake.phase+flake.y*.018)*flake.drift;
+   winterContext.globalAlpha=flake.alpha;
+   winterContext.fillStyle=flake.near?'#f1f6ff':'#dbeaff';
+   winterContext.beginPath();
+   winterContext.arc(x,flake.y,flake.radius,0,Math.PI*2);
+   winterContext.fill();
+  }
+  if(!reduce.matches&&!document.hidden)frame=requestAnimationFrame(paintSnow);
+ }
+
+ function restartSnow(){
+  cancelAnimationFrame(frame);
+  previousTime=undefined;
+  if(!document.hidden)paintSnow(performance.now());
+ }
+
+ function sizeSnow(){
+  width=winterCanvas.clientWidth;
+  height=winterCanvas.clientHeight;
+  const ratio=Math.min(window.devicePixelRatio||1,2);
+  winterCanvas.width=Math.round(width*ratio);
+  winterCanvas.height=Math.round(height*ratio);
+  winterContext.setTransform(ratio,0,0,ratio,0,0);
+  const count=Math.round(Math.min(112,Math.max(34,width/12)));
+  flakes=Array.from({length:count},(_,index)=>{
+   const near=index%8===0;
+   return {
+    near,
+    x:snowX(near),
+    y:Math.random()*height,
+    radius:near?1.7+Math.random()*1.4:.55+Math.random()*.8,
+    alpha:near?.38+Math.random()*.22:.22+Math.random()*.28,
+    speed:near?24+Math.random()*15:8+Math.random()*12,
+    drift:near?13:5,
+    phase:Math.random()*Math.PI*2
+   };
+  });
+  restartSnow();
+ }
+
+ window.addEventListener('resize',sizeSnow);
+ document.addEventListener('visibilitychange',restartSnow);
+ reduce.addEventListener('change',restartSnow);
+ sizeSnow();
+}
 
 // ----------------------------------------------------------------------------
 // Audio Experience: Romantic Instrumental Ambient & Tactile Micro-Sounds
 // ----------------------------------------------------------------------------
-let audioCtx=null,isPlayingMusic=false,musicTimeout=null,masterMusicGain=null,delayNode=null;
+let audioCtx=null,isPlayingMusic=false,musicEnabled=true,musicTimeout=null,masterMusicGain=null,delayNode=null;
+const musicVoices=new Set();
+const musicButton=$('music-toggle');
 
 function getAudioContext(){
  if(!audioCtx){
   const AudioContext=window.AudioContext||window.webkitAudioContext;
-  if(AudioContext)audioCtx=new AudioContext();
+  if(!AudioContext)return null;
+  audioCtx=new AudioContext();
+  audioCtx.addEventListener('statechange',playMusicWhenReady);
  }
- if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+ if(audioCtx.state==='suspended'||audioCtx.state==='interrupted')audioCtx.resume().catch(()=>{});
  return audioCtx;
 }
 
 function setupMusicBus(ctx){
  if(masterMusicGain)return;
  masterMusicGain=ctx.createGain();
- masterMusicGain.gain.setValueAtTime(.22,ctx.currentTime);
+ masterMusicGain.gain.setValueAtTime(0,ctx.currentTime);
 
  delayNode=ctx.createDelay();
  delayNode.delayTime.setValueAtTime(.38,ctx.currentTime);
@@ -289,6 +293,10 @@ function playPianoNote(ctx,freq,time,duration=2.4,vel=.18){
  gain.connect(masterMusicGain);
  if(delayNode)gain.connect(delayNode);
 
+ for(const voice of [osc,osc2]){
+  musicVoices.add(voice);
+  voice.onended=()=>musicVoices.delete(voice);
+ }
  osc.start(time);osc2.start(time);
  osc.stop(time+duration);osc2.stop(time+duration);
 }
@@ -304,8 +312,7 @@ const loopDur=12.8;
 
 function scheduleMusicLoop(){
  if(!isPlayingMusic)return;
- const ctx=getAudioContext();
- setupMusicBus(ctx);
+ const ctx=audioCtx;
  const now=ctx.currentTime;
  for(const item of melody){
   playPianoNote(ctx,item.f,now+item.t,item.d,item.v);
@@ -313,40 +320,48 @@ function scheduleMusicLoop(){
  musicTimeout=setTimeout(scheduleMusicLoop,(loopDur-.2)*1000);
 }
 
-function startMusic(){
- const ctx=getAudioContext();
- if(!ctx)return;
+function playMusicWhenReady(){
+ const ctx=audioCtx;
+ if(!musicEnabled||isPlayingMusic||ctx?.state!=='running')return;
  setupMusicBus(ctx);
  isPlayingMusic=true;
- $('music-toggle')?.classList.add('playing');
- $('music-toggle')?.setAttribute('aria-label','Выключить фоновую музыку');
+ masterMusicGain.gain.setTargetAtTime(.22,ctx.currentTime,.1);
+ musicButton.classList.add('playing');
+ musicButton.setAttribute('aria-pressed','true');
+ musicButton.setAttribute('aria-label','Выключить фоновую музыку');
  scheduleMusicLoop();
 }
 
 function stopMusic(){
+ musicEnabled=false;
  isPlayingMusic=false;
  clearTimeout(musicTimeout);
- $('music-toggle')?.classList.remove('playing');
- $('music-toggle')?.setAttribute('aria-label','Включить фоновую музыку');
+ masterMusicGain.gain.setTargetAtTime(0,audioCtx.currentTime,.025);
+ for(const voice of musicVoices)voice.stop(audioCtx.currentTime+.08);
+ musicVoices.clear();
+ musicButton.classList.remove('playing');
+ musicButton.setAttribute('aria-pressed','false');
+ musicButton.setAttribute('aria-label','Включить фоновую музыку');
 }
 
-function toggleMusic(){
+function startMusic(){
+ musicEnabled=true;
+ getAudioContext();
+ playMusicWhenReady();
+}
+
+musicButton.addEventListener('click',()=>{
  if(isPlayingMusic)stopMusic();
  else startMusic();
+});
+
+function retryAutoplay(event){
+ if(musicEnabled&&audioCtx?.state!=='running'&&!musicButton.contains(event.target))startMusic();
 }
 
-$('music-toggle')?.addEventListener('click',toggleMusic);
-
-// Auto-start music on first user gesture anywhere on page
-function onFirstUserGesture(){
- if(!isPlayingMusic){
-  startMusic();
- }
- window.removeEventListener('pointerdown',onFirstUserGesture);
- window.removeEventListener('keydown',onFirstUserGesture);
-}
-window.addEventListener('pointerdown',onFirstUserGesture,{once:true});
-window.addEventListener('keydown',onFirstUserGesture,{once:true});
+document.addEventListener('pointerup',retryAutoplay);
+document.addEventListener('keydown',retryAutoplay);
+startMusic();
 
 // Tactile micro-sounds
 function playBoxClick(){

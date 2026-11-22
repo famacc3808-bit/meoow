@@ -6,17 +6,24 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 const host=document.getElementById('scene-wrap');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 let renderer,scene,camera,lid,inspectionPivot,frame,start=0,from=0,to=0,current=0;
-let insideGlow,ambientGeo,ambientMat,burstGeo,burstMat,burstVel=[],twinkles=[];
+let insideGlow,wrapping,ribbonMaterials,ambientGeo,ambientMat,burstGeo,burstMat,burstVel=[],twinkles=[];
 const ambientCount=65,burstCount=85,ambientInit=[];
 
 function draw(){renderer.render(scene,camera);}
 
 function pose(){
- lid.rotation.x=-current*1.87;
+ const release=THREE.MathUtils.smoothstep(current,0,.48);
+ lid.rotation.x=-THREE.MathUtils.smoothstep(current,.16,1)*1.87;
+ if(wrapping){
+  wrapping.visible=release<1;
+  wrapping.position.set(-release*1.5,release*.5,release*.12);
+  wrapping.rotation.z=release*.22;
+  for(const material of ribbonMaterials)material.opacity=1-release;
+ }
  const narrow=camera.aspect<1;
- const distance=narrow?1.24:1.16;
+ const distance=narrow?1.24:1.05+current*.11;
  camera.position.set(1.5*(1-current*.45), (10.2-current*.8)*distance, (12.8-current*2.5)*distance);
- camera.lookAt(0,.85+current*1.05,0);
+ camera.lookAt(0,.58+current*1.32,0);
  if(inspectionPivot)inspectionPivot.position.y=current*.22;
  if(insideGlow)insideGlow.intensity=current*3.8;
 }
@@ -40,6 +47,20 @@ function makeSparkleTexture(){
  ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=1.6;
  ctx.beginPath();ctx.moveTo(32,6);ctx.lineTo(32,58);ctx.moveTo(6,32);ctx.lineTo(58,32);ctx.stroke();
  return new THREE.CanvasTexture(c);
+}
+
+function inscription(text,width,height,colour,font){
+ const canvas=document.createElement('canvas');
+ canvas.width=width;canvas.height=height;
+ const context=canvas.getContext('2d');
+ context.fillStyle=colour;
+ context.font=font;
+ context.textAlign='center';
+ context.textBaseline='middle';
+ context.fillText(text,width/2,height/2);
+ const texture=new THREE.CanvasTexture(canvas);
+ texture.colorSpace=THREE.SRGBColorSpace;
+ return texture;
 }
 
 function triggerBurst(){
@@ -78,11 +99,21 @@ window.giftScene={
 };
 
 try{
- renderer=new THREE.WebGLRenderer({canvas:document.getElementById('scene'),alpha:true,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;
+ renderer=new THREE.WebGLRenderer({canvas:document.getElementById('scene'),alpha:true,antialias:true});renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;
  scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(32,1,.1,100);camera.position.set(1.5,10.2,12.8);camera.lookAt(0,.85,0);
  scene.add(new THREE.HemisphereLight(0xfff8f0,0x605860,1.4));const key=new THREE.DirectionalLight(0xffffff,2.4);key.position.set(-6,8,5);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.camera.left=-7;key.shadow.camera.right=7;key.shadow.camera.top=7;key.shadow.camera.bottom=-7;key.shadow.normalBias=.025;scene.add(key);
  const fill=new THREE.DirectionalLight(0xfff5ea,1.1);fill.position.set(6,4,-4);scene.add(fill);
- const floor=new THREE.Mesh(new THREE.PlaneGeometry(50,50),new THREE.ShadowMaterial({opacity:.18}));floor.rotation.x=-Math.PI/2;floor.position.y=-.51;floor.receiveShadow=true;scene.add(floor);
+ const shadowCanvas=document.createElement('canvas');shadowCanvas.width=shadowCanvas.height=128;
+ const shadowContext=shadowCanvas.getContext('2d');
+ const shadowGradient=shadowContext.createRadialGradient(64,64,14,64,64,64);
+ shadowGradient.addColorStop(0,'rgba(0,0,0,.55)');
+ shadowGradient.addColorStop(.55,'rgba(0,0,0,.26)');
+ shadowGradient.addColorStop(1,'rgba(0,0,0,0)');
+ shadowContext.fillStyle=shadowGradient;shadowContext.fillRect(0,0,128,128);
+ const floor=new THREE.Mesh(new THREE.PlaneGeometry(8.8,7.6),new THREE.MeshBasicMaterial({
+  map:new THREE.CanvasTexture(shadowCanvas),transparent:true,depthWrite:false
+ }));
+ floor.rotation.x=-Math.PI/2;floor.position.set(0,-.51,.08);floor.renderOrder=-1;scene.add(floor);
 
  const grainCanvas=document.createElement('canvas');grainCanvas.width=512;grainCanvas.height=512;
  const grainContext=grainCanvas.getContext('2d');const grainPixels=grainContext.createImageData(512,512);
@@ -100,13 +131,18 @@ try{
  grainContext.putImageData(grainPixels,0,0);
  const paperGrain=new THREE.CanvasTexture(grainCanvas);paperGrain.wrapS=paperGrain.wrapT=THREE.RepeatWrapping;paperGrain.repeat.set(12,12);paperGrain.anisotropy=renderer.capabilities.getMaxAnisotropy();
 
- const outer=new THREE.MeshStandardMaterial({color:0xf4f4f4,roughness:.72,metalness:.04,map:paperGrain,bumpMap:paperGrain,bumpScale:.045});const velvet=new THREE.MeshStandardMaterial({color:0x151517,roughness:1});const trim=new THREE.MeshStandardMaterial({color:0xe6e6e6,metalness:.25,roughness:.38});
+ const outer=new THREE.MeshStandardMaterial({color:0xf4f4f4,roughness:.72,metalness:.04,map:paperGrain,bumpMap:paperGrain,bumpScale:.045});
+ const velvet=new THREE.MeshPhysicalMaterial({color:0x172740,roughness:.94,bumpMap:paperGrain,bumpScale:.009,sheen:1,sheenColor:0x677da2,sheenRoughness:.85});
+ const piping=new THREE.MeshStandardMaterial({color:0x293d5b,roughness:.96});
+ const trim=new THREE.MeshStandardMaterial({color:0xe6e6e6,metalness:.25,roughness:.38});
  const group=new THREE.Group();group.rotation.y=-.18;scene.add(group);
 
  insideGlow=new THREE.PointLight(0xffeed6,0,8,1.8);insideGlow.position.set(0,.35,0);group.add(insideGlow);
 
  function part(w,h,d,r,mat,x,y,z,parent=group){const mesh=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,4,r),mat);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;}
- part(5.15,.3,4.45,.13,outer,0,-.33,0);part(4.78,.23,4.08,.13,velvet,0,-.07,0);
+ part(5.15,.3,4.45,.13,outer,0,-.33,0);
+ part(4.82,.19,4.12,.09,piping,0,-.075,0);
+ part(4.68,.25,3.98,.115,velvet,0,-.08,0);
  for(const x of [-2.48,2.48])part(.25,.75,4.4,.08,outer,x,.02,0);
  for(const z of [-2.1,2.1])part(4.85,.75,.25,.08,outer,0,.02,z);
  for(const x of [-2.48,2.48])part(.255,.035,4.25,.014,trim,x,.4,0);
@@ -120,8 +156,57 @@ try{
  const word='PANDORA',spacing=12;const widths=[...word].map(char=>ctx.measureText(char).width);const total=widths.reduce((a,b)=>a+b,0)+spacing*(word.length-1);let pen=(1536-total)/2;
  for(let i=0;i<word.length;i++){ctx.fillText(word[i],pen,265);if(i===4){const center=pen+widths[i]/2;ctx.beginPath();ctx.moveTo(center-23,127);ctx.lineTo(center-34,81);ctx.lineTo(center-11,106);ctx.lineTo(center,67);ctx.lineTo(center+11,106);ctx.lineTo(center+34,81);ctx.lineTo(center+23,127);ctx.closePath();ctx.fill();}pen+=widths[i]+spacing;}
  const labelTex=new THREE.CanvasTexture(labelCanvas);labelTex.colorSpace=THREE.SRGBColorSpace;labelTex.anisotropy=renderer.capabilities.getMaxAnisotropy();
- const label=new THREE.Mesh(new THREE.PlaneGeometry(4.6,.96),new THREE.MeshStandardMaterial({map:labelTex,transparent:true,alphaTest:.05,depthWrite:false,roughness:.48,metalness:.15}));
+ const label=new THREE.Mesh(new THREE.PlaneGeometry(4.6,.96),new THREE.MeshBasicMaterial({map:labelTex,transparent:true,depthWrite:false,toneMapped:false}));
  label.rotation.x=-Math.PI/2;label.position.set(0,.381,3.68);lid.add(label);
+
+ const dedication=new THREE.Mesh(new THREE.PlaneGeometry(3,.46),new THREE.MeshBasicMaterial({
+  map:inscription('Для тебя · 18 декабря',1024,160,'#e8d2b0','67px Georgia'),
+  transparent:true,depthWrite:false,toneMapped:false
+ }));
+ dedication.rotation.x=Math.PI/2;dedication.position.set(0,-.08,3.43);lid.add(dedication);
+
+ wrapping=new THREE.Group();group.add(wrapping);
+ const satin=new THREE.MeshPhysicalMaterial({
+  color:0x802437,roughness:.39,sheen:.8,sheenColor:0xbb6574,
+  side:THREE.DoubleSide,transparent:true,depthWrite:false
+ });
+ const card=new THREE.MeshStandardMaterial({color:0xf0ddbb,roughness:.88,transparent:true,depthWrite:false});
+ const tagInk=new THREE.MeshBasicMaterial({
+  map:inscription('Милане',512,256,'#562831','93px Georgia'),
+  transparent:true,depthWrite:false,toneMapped:false
+ });
+ ribbonMaterials=[satin,card,tagInk];
+ const wrapPart=(w,h,d,r,mat,x,y,z,parent=wrapping)=>{
+  const mesh=part(w,h,d,r,mat,x,y,z,parent);mesh.castShadow=false;return mesh;
+ };
+ wrapPart(5.23,.05,.52,.022,satin,0,.87,-.83);
+ wrapPart(5.16,.04,.52,.018,satin,0,-.48,-.83);
+ for(const x of [-2.6,2.6])wrapPart(.058,1.35,.52,.025,satin,x,.2,-.83);
+ wrapPart(.39,.19,.42,.085,satin,-1.22,.98,-.83);
+
+ for(const side of [-1,1]){
+  const point=(x,y,z)=>new THREE.Vector3(-1.22+side*x,y,-.83+z);
+  const loop=new THREE.CubicBezierCurve3(point(.08,.95,0),point(1.3,1.86,0),point(1.48,.93,.12),point(.09,1.05,.08));
+  const vertices=[],indices=[];
+  for(let i=0;i<=24;i++){
+   const t=i/24,p=loop.getPoint(t),half=.10+.11*Math.sin(t*Math.PI);
+   vertices.push(p.x,p.y,p.z-half,p.x,p.y,p.z+half);
+   if(i<24){const j=i*2;indices.push(j,j+1,j+2,j+1,j+3,j+2);}
+  }
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+  geometry.setIndex(indices);geometry.computeVertexNormals();
+  wrapping.add(new THREE.Mesh(geometry,satin));
+ }
+
+ const giftTag=new THREE.Group();giftTag.position.set(-.83,.89,-.15);giftTag.rotation.y=-.27;wrapping.add(giftTag);
+ wrapPart(1.11,.045,.55,.021,card,0,0,0,giftTag);
+ const tagLabel=new THREE.Mesh(new THREE.PlaneGeometry(1.03,.51),tagInk);
+ tagLabel.rotation.x=-Math.PI/2;tagLabel.position.y=.024;giftTag.add(tagLabel);
+ const cordCurve=new THREE.QuadraticBezierCurve3(
+  new THREE.Vector3(-1.22,1,-.83),new THREE.Vector3(-1.46,1.03,-.4),new THREE.Vector3(-1.28,.92,-.15)
+ );
+ wrapping.add(new THREE.Mesh(new THREE.TubeGeometry(cordCurve,16,.023,6,false),satin));
 
  const pmrem=new THREE.PMREMGenerator(renderer);const studio=new RoomEnvironment();const environment=pmrem.fromScene(studio,.04);scene.environment=environment.texture;scene.environmentIntensity=.65;renderer.toneMappingExposure=.85;studio.dispose();pmrem.dispose();
 
@@ -199,7 +284,20 @@ try{
  }
  requestAnimationFrame(loop);
 
- function resize(){const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();pose();draw();}new ResizeObserver(resize).observe(host);resize();
+ function resize(){
+  const {width,height}=host.getBoundingClientRect();
+  if(!width||!height)return;
+  const pixelBudget=Math.sqrt(3_000_000/(width*height));
+  const ratio=Math.min(Math.max(window.devicePixelRatio||1,1.5),2.5,pixelBudget);
+  renderer.setDrawingBufferSize(width,height,ratio);
+  camera.aspect=width/height;
+  camera.updateProjectionMatrix();
+  pose();
+  draw();
+ }
+ new ResizeObserver(resize).observe(host);
+ window.addEventListener('resize',resize);
+ resize();
  renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();throwFallback();});
 }catch(e){console.error('Не удалось создать 3D-сцену',e);throwFallback();}
 function throwFallback(){host.classList.add('fallback');document.getElementById('hint').textContent='3D недоступно на этом устройстве. Можно открыть подарок без анимации.';document.getElementById('open').disabled=false;document.getElementById('gift').disabled=false;}
