@@ -1,5 +1,6 @@
 'use strict';
 const $=id=>document.getElementById(id);
+const main=document.querySelector('main');
 const reduce=window.matchMedia('(prefers-reduced-motion: reduce)');
 let state='closed',timer,angle=0,drag=null;
 
@@ -38,7 +39,7 @@ function openGift(){
  $('gift').setAttribute('aria-expanded','true');
  $('scene-wrap').classList.add('opened');
  window.giftScene?.setOpen(true);
- $('hint').textContent='С днём рождения, киса.';
+ $('hint').textContent='С днём рождения, Милана.';
 
  timer=setTimeout(()=>{
   state='open';
@@ -83,7 +84,8 @@ for(const event of ['pointerup','pointercancel','lostpointercapture'])$('gift').
 
 $('read').addEventListener('click',()=>{
  playPaperRustle();
- $('gift-page').hidden=true;
+ main.classList.add('reading');
+ $('gift').inert=true;
  $('letter').hidden=false;
  window.scrollTo({top:0,behavior:'instant'});
  $('letter-title').focus({preventScroll:true});
@@ -92,7 +94,8 @@ $('read').addEventListener('click',()=>{
 function closeLetter(){
  playPaperRustle();
  $('letter').hidden=true;
- $('gift-page').hidden=false;
+ main.classList.remove('reading');
+ $('gift').inert=false;
  window.scrollTo({top:0,behavior:'instant'});
  $('read').focus();
 }
@@ -100,6 +103,48 @@ function closeLetter(){
 $('back').addEventListener('click',closeLetter);
 $('close-letter').addEventListener('click',closeLetter);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('letter').hidden)closeLetter();});
+
+const replyForm=$('letter-reply');
+const replyMessage=$('reply-message');
+const replyButton=replyForm.querySelector('button');
+const replyStatus=$('reply-status');
+const replyEndpoint='https://portfolio-tg.zanxxxxx1.workers.dev';
+
+replyForm.addEventListener('submit',async e=>{
+ e.preventDefault();
+ const text=replyMessage.value.trim();
+ if(replyButton.disabled)return;
+ if(!text){
+  replyStatus.textContent='Напиши сообщение.';
+  replyMessage.focus();
+  return;
+ }
+
+ replyButton.disabled=true;
+ replyMessage.readOnly=true;
+ replyStatus.textContent='Отправляю…';
+
+ try{
+  const response=await fetch(replyEndpoint,{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({text,website:$('reply-website').value})
+  });
+  if(response.ok){
+   replyMessage.value='';
+   replyStatus.textContent='Сообщение отправлено.';
+  }else if(response.status===429){
+   replyStatus.textContent='Подожди несколько минут и попробуй снова.';
+  }else{
+   replyStatus.textContent='Не удалось отправить сообщение. Попробуй ещё раз.';
+  }
+ }catch{
+  replyStatus.textContent='Не удалось отправить сообщение. Попробуй ещё раз.';
+ }finally{
+  replyButton.disabled=false;
+  replyMessage.readOnly=false;
+ }
+});
 
 $('reset').addEventListener('click',()=>{
  clearTimeout(timer);
@@ -117,7 +162,7 @@ $('reset').addEventListener('click',()=>{
  $('gift').setAttribute('aria-label','Открыть коробочку с подарком');
  $('gift').classList.remove('inspectable');
  $('scene-wrap').classList.remove('opened');
- $('title').textContent='Киса, это тебе';
+ $('title').textContent='Милана, это тебе';
  $('hint').textContent='Нажми на кнопку или на коробочку';
  $('open').focus({preventScroll:true});
 });
@@ -129,7 +174,6 @@ let showedCountdown=false;
 
 function unlockMainSite(){
  const header=document.querySelector('header');
- const main=document.querySelector('main');
  header.inert=false;
  if(!showedCountdown||reduce.matches){
   countdownScreen.hidden=true;
