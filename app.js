@@ -209,9 +209,7 @@ if(preview){
  document.querySelector('.countdown-headline').textContent='Тестовый отсчёт';
  document.querySelector('.countdown-note').textContent='Подарок откроется через 10 секунд';
 }
-const skipCountdownForReplyTest=true;
-if(skipCountdownForReplyTest&&!preview)unlockMainSite();
-else updateCountdown();
+updateCountdown();
 
 const winterCanvas=$('winter-snow');
 const winterContext=winterCanvas?.getContext('2d');
